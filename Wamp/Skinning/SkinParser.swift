@@ -15,7 +15,7 @@ final class SkinParser {
     func parse(contentsOf url: URL) async throws -> SkinModel {
         try await Task.detached(priority: .userInitiated) { [self] in
             let data = try Data(contentsOf: url)
-            return try buildModel(from: data)
+            return try await buildModel(from: data)
         }.value
     }
 
