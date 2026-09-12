@@ -52,7 +52,7 @@ class AudioEngine: ObservableObject {
     @Published private(set) var eqBands: [Float] = Array(repeating: 0, count: 10) // dB per band
 
     static let eqFrequencies: [Float] = [
-        70, 180, 320, 600, 1000, 3000, 6000, 12000, 14000, 16000
+        32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000
     ]
 
     // MARK: - Private
@@ -102,7 +102,13 @@ class AudioEngine: ObservableObject {
     private func setupEQBands() {
         for (i, freq) in Self.eqFrequencies.enumerated() {
             let band = eq.bands[i]
-            band.filterType = .parametric
+            if i == 0 {
+                band.filterType = .lowShelf
+            } else if i == Self.eqFrequencies.count - 1 {
+                band.filterType = .highShelf
+            } else {
+                band.filterType = .parametric
+            }
             band.frequency = freq
             band.bandwidth = 1.0
             band.gain = 0
@@ -301,7 +307,7 @@ class AudioEngine: ObservableObject {
 
     func setPreamp(gain: Float) {
         preampGain = max(-12, min(12, gain))
-        engine.mainMixerNode.outputVolume = effectiveVolume
+        eq.globalGain = preampGain
     }
 
     func setAllEQBands(_ gains: [Float]) {
