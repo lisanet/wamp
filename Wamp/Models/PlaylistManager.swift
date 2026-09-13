@@ -165,6 +165,7 @@ class PlaylistManager: ObservableObject {
         }
         if replaceCurrent {
             clearPlaylist()
+            currentIndex = 0
         }
         addTracks(newTracks)
         return LibraryImportSummary(
@@ -413,6 +414,7 @@ class PlaylistManager: ObservableObject {
         clearPlaylist()
         let urls = paths.map { URL(fileURLWithPath: $0) }
         await addURLs(urls)
+        currentIndex = 0
     }
 
     /// Write the current playlist as an M3U file (one track URL/path per line).
@@ -465,6 +467,7 @@ class PlaylistManager: ObservableObject {
         clearPlaylist()
         let before = tracks.count
         await addURLs(urls)
+        currentIndex = 0
         return M3UImportSummary(imported: tracks.count - before, missing: missing)
     }
 

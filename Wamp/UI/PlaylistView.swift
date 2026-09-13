@@ -429,6 +429,15 @@ class PlaylistView: NSView {
             playlistManager?.removeTrack(at: index)
         }
     }
+    
+    func selectedTrackIndex() -> Int {
+        let row = tableView.selectedRow
+        guard displayedTracks.indices.contains(row) else { return -1 }
+
+        return playlistManager?.tracks.firstIndex {
+            $0.id == displayedTracks[row].id
+        } ?? -1
+    }
 
     // MARK: - Bottom-bar menus (shared by skinned + unskinned modes)
     //

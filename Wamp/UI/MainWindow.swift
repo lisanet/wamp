@@ -141,7 +141,7 @@ class MainWindow: NSWindow {
 
     func bindToModels(audioEngine: AudioEngine, playlistManager: PlaylistManager) {
         self.audioEngine = audioEngine
-        mainPlayerView.bindToModels(audioEngine: audioEngine, playlistManager: playlistManager)
+        mainPlayerView.bindToModels(audioEngine: audioEngine, playlistManager: playlistManager, playlistView: playlistView)
         equalizerView.bindToModel(audioEngine: audioEngine, playlistManager: playlistManager)
         playlistView.bindToModel(playlistManager: playlistManager)
 
@@ -154,14 +154,20 @@ class MainWindow: NSWindow {
             if engine.playState == .stopped, let pm = playlistManager, pm.currentTrack != nil {
                 // playTrack honors CUE segment bounds (a bare loadAndPlay(url:)
                 // would play the whole album file) and re-arms gapless chaining.
-                pm.playTrack(at: pm.currentIndex)
+                pm.playTrack(at: self.playlistView.selectedTrackIndex())
             } else {
                 engine.play()
             }
         }
         playlistView.onMiniPause = { [weak audioEngine] in audioEngine?.pause() }
         playlistView.onMiniStop  = { [weak audioEngine] in audioEngine?.stop() }
-        playlistView.onMiniNext  = { [weak playlistManager] in playlistManager?.playNext() }
+        playlistView.onMiniNext  = { [weak playlistManager] in
+            let selectedTrackIndex = self.playlistView.selectedTrackIndex()
+            if selectedTrackIndex != playlistManager?.currentIndex {
+                playlistManager?.currentIndex = selectedTrackIndex - 1
+            }
+            playlistManager?.playNext()
+        }
 
         mainPlayerView.onToggleEQ = { [weak self] in
             self?.showEqualizer.toggle()

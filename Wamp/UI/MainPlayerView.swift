@@ -60,6 +60,7 @@ class MainPlayerView: NSView {
     private var skinObserver: AnyCancellable?
     private weak var audioEngine: AudioEngine?
     private weak var playlistManager: PlaylistManager?
+    private weak var playlistView: PlaylistView?
 
     // Window dragging state for skinned mode (titleBar is hidden)
     private var dragOrigin: NSPoint?
@@ -498,9 +499,10 @@ class MainPlayerView: NSView {
     }
 
     // MARK: - Binding
-    func bindToModels(audioEngine: AudioEngine, playlistManager: PlaylistManager) {
+    func bindToModels(audioEngine: AudioEngine, playlistManager: PlaylistManager, playlistView: PlaylistView) {
         self.audioEngine = audioEngine
         self.playlistManager = playlistManager
+        self.playlistView = playlistView
 
         // Time
         audioEngine.$currentTime
@@ -565,14 +567,20 @@ class MainPlayerView: NSView {
                let pm = self.playlistManager, pm.currentTrack != nil {
                 // playTrack honors CUE segment bounds (a bare loadAndPlay(url:)
                 // would play the whole album file) and re-arms gapless chaining.
-                pm.playTrack(at: pm.currentIndex)
+                pm.playTrack(at: playlistView.selectedTrackIndex())
             } else {
                 engine.play()
             }
         }
         transportBar.onPause = { [weak audioEngine] in audioEngine?.pause() }
         transportBar.onStop = { [weak audioEngine] in audioEngine?.stop() }
-        transportBar.onNext = { [weak playlistManager] in playlistManager?.playNext() }
+        transportBar.onNext = { [weak playlistManager] in
+            let selectedTrackIndex = playlistView.selectedTrackIndex()
+            if selectedTrackIndex != playlistManager?.currentIndex {
+                playlistManager?.currentIndex = selectedTrackIndex - 1
+            }
+            playlistManager?.playNext()
+        }
         transportBar.onEject = { [weak self] in self?.showOpenFilePanel() }
 
         // Play state

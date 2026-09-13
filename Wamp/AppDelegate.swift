@@ -219,6 +219,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // App
         let about = item("About Wamp", #selector(showAboutPanel), "", symbol: "info.circle")
+        let hide = item("Hide Wamp", #selector(NSApplication.hide(_:)), "h", symbol: "eye.slash")
         let quit = item("Quit Wamp", #selector(NSApplication.terminate(_:)), "q", symbol: "power")
 
         // File
@@ -279,7 +280,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let unloadSkin = item("Unload Skin", #selector(unloadSkinAction), "", symbol: "paintpalette.fill")
 
         return AppMenuItems(
-            app: [about, .separator(), quit],
+            app: [about, .separator(), hide, .separator(), quit],
             file: [openFile, openFolder, .separator(), importMusic],
             edit: [selectAll],
             controls: [playPause, stop, next, prev, .separator(),
@@ -563,6 +564,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         prev.target = self
         menu.addItem(prev)
         menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Hide Player", action: #selector(NSApplication.hide(_:)), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: ""))
 
         statusItem.menu = menu
