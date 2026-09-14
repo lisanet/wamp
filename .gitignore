@@ -6,6 +6,7 @@ DerivedData/
 xcuserdata/
 *.xccheckout
 *.xcscmblueprint
+.derived-data-log-*
 
 # Swift Package Manager
 .build/
