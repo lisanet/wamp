@@ -80,8 +80,7 @@ class AudioEngine: ObservableObject {
     private var pendingChain: (startFrame: AVAudioFramePosition, endFrame: AVAudioFramePosition)?
 
     private var effectiveVolume: Float {
-        // Preamp is folded in so volume/mute changes don't silently wipe it.
-        (isMuted ? 0 : volume) * pow(10, preampGain / 20)
+        isMuted ? 0 : volume
     }
 
     // MARK: - Init
