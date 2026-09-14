@@ -33,7 +33,7 @@ class SpectrumView: NSView {
         let rows = CGFloat(Self.rowCount)
         for i in 0..<barCount {
             let dataIndex = i < spectrumData.count ? i : 0
-            let amplitude = spectrumData.isEmpty ? Float(0) : min(1, spectrumData[dataIndex] * 10)
+            let amplitude = spectrumData.isEmpty ? Float(0) : min(1, spectrumData[dataIndex])
             let barRows = CGFloat(amplitude) * rows
             if barRows >= peaks[i] {
                 peaks[i] = barRows
@@ -61,7 +61,7 @@ class SpectrumView: NSView {
 
         for i in 0..<totalBars {
             let dataIndex = i < spectrumData.count ? i : 0
-            let amplitude = spectrumData.isEmpty ? Float(0) : min(1, spectrumData[dataIndex] * 10)
+            let amplitude = spectrumData.isEmpty ? Float(0) : min(1, spectrumData[dataIndex])
             let litRows = Int(CGFloat(amplitude) * CGFloat(rows))
             let x = CGFloat(i) * (barWidth + gap)
 
@@ -75,8 +75,8 @@ class SpectrumView: NSView {
             }
 
             // Peak cap
-            if i < peaks.count {
-                let peakRow = Int(peaks[i])
+            if dataIndex < peaks.count {
+                let peakRow = Int(peaks[dataIndex])
                 if peakRow > litRows && peakRow < rows {
                     peakColor.setFill()
                     NSRect(x: x,

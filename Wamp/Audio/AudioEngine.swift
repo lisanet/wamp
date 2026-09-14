@@ -27,6 +27,7 @@ extension AudioEngine {
 }
 
 class AudioEngine: ObservableObject {
+    static let maxSpectrumBars = 26
     // MARK: - Published State
     @Published var isPlaying = false
     @Published var playState: PlayState = .stopped
@@ -46,7 +47,7 @@ class AudioEngine: ObservableObject {
         didSet { eq.bypass = !eqEnabled }
     }
     @Published var preampGain: Float = 0 // dB, -12 to +12
-    @Published var spectrumData: [Float] = Array(repeating: 0, count: 32)
+    @Published var spectrumData: [Float] = Array(repeating: 0, count: maxSpectrumBars)
 
     // MARK: - EQ State
     @Published private(set) var eqBands: [Float] = Array(repeating: 0, count: 10) // dB per band
@@ -449,7 +450,7 @@ class AudioEngine: ObservableObject {
         let halfSize = fftSize / 2
         // The tap doesn't guarantee buffer sizes; with halfSize below the
         // 32-bin output the mapping loop would form an empty range and trap.
-        guard halfSize >= 32 else { return }
+        guard halfSize >= AudioEngine.maxSpectrumBars else { return }
 
         guard let fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2)) else { return }
         defer { vDSP_destroy_fftsetup(fftSetup) }
@@ -476,17 +477,28 @@ class AudioEngine: ObservableObject {
                 var magnitudes = [Float](repeating: 0, count: halfSize)
                 vDSP_zvmags(&splitComplex, 1, &magnitudes, 1, vDSP_Length(halfSize))
 
-                // Scale and map to 32 bins
-                let binCount = 32
+                // Scale and map to 26 bins
+                let binCount = AudioEngine.maxSpectrumBars
+                let minFrequency: Float = 60.0
+                let maxFrequency: Float = 18_000.0
+                let displayGain: Float = 0.011 // just try&error
+                let frequencyPerBin = maxFrequency / Float(fftSize)
                 var spectrum = [Float](repeating: 0, count: binCount)
-                let binsPerOutput = max(1, halfSize / binCount)
-
+                // logarithmic bands
+                let frequencyRatio = pow(maxFrequency / minFrequency, 1.0 / Float(binCount))
+                
                 for i in 0..<binCount {
-                    let start = i * binsPerOutput
-                    let end = min(start + binsPerOutput, halfSize)
+                    let lowerFrequency = minFrequency * pow(frequencyRatio, Float(i))
+                    let upperFrequency = minFrequency * pow(frequencyRatio, Float(i + 1))
+
+                    var start = Int(lowerFrequency / frequencyPerBin)
+                    var end = Int(upperFrequency / frequencyPerBin)
+                    start = max(1, min(start, halfSize - 1))
+                    end = max(1, start + 1, min(end, halfSize))
+                    
                     var sum: Float = 0
                     vDSP_sve(Array(magnitudes[start..<end]), 1, &sum, vDSP_Length(end - start))
-                    spectrum[i] = sqrt(sum / Float(end - start)) * 0.05
+                    spectrum[i] = sqrt(sum / Float(end - start)) * displayGain
                 }
 
                 DispatchQueue.main.async { [weak self] in
