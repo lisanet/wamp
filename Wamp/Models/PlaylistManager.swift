@@ -9,6 +9,9 @@ class PlaylistManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private weak var audioEngine: AudioEngine?
 
+    var autoPlay: Bool = false
+    var autoPlayOnStartup: Bool = false
+    
     var currentTrack: Track? {
         guard currentIndex >= 0, currentIndex < tracks.count else { return nil }
         return tracks[currentIndex]
@@ -66,7 +69,21 @@ class PlaylistManager: ObservableObject {
 
     // MARK: - Track Management
     func addTracks(_ newTracks: [Track]) {
+        var oldCount = tracks.count
+        let oldIndex = currentIndex
+        if !newTracks.isEmpty, autoPlay, autoPlayOnStartup {
+            // there are tracks on opening the app (app open or d&d on app icon, so autoplay them if reqested
+            clearPlaylist()
+            oldCount = 0
+        }
+        autoPlayOnStartup = false // app already has open, autoplay has been checked, so mark autPlayOnStartup as false
         tracks.append(contentsOf: newTracks)
+        if oldCount == 0 {
+            currentIndex = 0
+            if autoPlay { playTrack(at: 0) }
+        } else {
+            currentIndex = oldIndex
+        }
     }
 
     func addURLs(_ urls: [URL]) async {
@@ -167,9 +184,6 @@ class PlaylistManager: ObservableObject {
             clearPlaylist()
         }
         addTracks(newTracks)
-        if replaceCurrent, newTracks.count > 0 {
-            currentIndex = 0
-        }
         return LibraryImportSummary(
             imported: newTracks.count,
             skippedStreamingOnly: streamingOnly,
@@ -416,9 +430,6 @@ class PlaylistManager: ObservableObject {
         clearPlaylist()
         let urls = paths.map { URL(fileURLWithPath: $0) }
         await addURLs(urls)
-        if !tracks.isEmpty {
-            currentIndex = 0
-        }
     }
 
     /// Write the current playlist as an M3U file (one track URL/path per line).
@@ -471,9 +482,6 @@ class PlaylistManager: ObservableObject {
         clearPlaylist()
         let before = tracks.count
         await addURLs(urls)
-        if !tracks.isEmpty {
-            currentIndex = 0
-        }
         return M3UImportSummary(imported: tracks.count - before, missing: missing)
     }
 

@@ -11,6 +11,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var hotKeyManager: HotKeyManager!
     private weak var alwaysOnTopMenuItem: NSMenuItem?
     private weak var doubleSizeMenuItem: NSMenuItem?
+    private weak var autoPlayMenuItem: NSMenuItem?
     private var jumpToFileWindow: JumpToFileWindow?
     private var jumpToFileMonitor: Any?
 
@@ -51,6 +52,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
 
+        playlistManager.autoPlay = appState.autoPlay
+        if playlistManager.autoPlay { playlistManager.autoPlayOnStartup = true } // clear playlist if autoplay
+        
         // Restore saved skin (synchronous to avoid window flicker)
         if let path = appState.skinPath, FileManager.default.fileExists(atPath: path) {
             try? SkinManager.shared.loadSkinSync(from: URL(fileURLWithPath: path))
@@ -106,6 +110,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             showEQ: mainWindow.showEqualizer,
             showPlaylist: mainWindow.showPlaylist,
             alwaysOnTop: mainWindow.alwaysOnTop,
+            autoPlay: playlistManager.autoPlay,
             audioEngine: audioEngine,
             playlistManager: playlistManager
         )
@@ -189,6 +194,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     struct AppMenuState {
         var alwaysOnTop: Bool
         var doubleSize: Bool
+        var autoPlay: Bool
         var eqVisible: Bool
         var playlistVisible: Bool
     }
@@ -202,8 +208,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let edit: [NSMenuItem]
         let controls: [NSMenuItem]
         let view: [NSMenuItem]
+        let quit: [NSMenuItem]
         let alwaysOnTopItem: NSMenuItem
         let doubleSizeItem: NSMenuItem
+        let autoPlayItem: NSMenuItem
     }
 
     /// Single source of truth for application menu structure. Items use
@@ -226,7 +234,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let openFile = item("Open File…", #selector(openFileAction), "o", symbol: "doc")
         let openFolder = item("Open Folder…", #selector(openFolderAction), "O", symbol: "folder")
         openFolder.keyEquivalentModifierMask = [.command, .shift]
+        let newList = item("New List", #selector(newListAction), "n", symbol: "")
+        let loadList = item("Load List…", #selector(loadListAction), "l", symbol: "")
+        let saveList = item("SaveList…", #selector(saveListAction), "", symbol: "")
         let importMusic = item("Import from Music Library…",
+                               
                                #selector(importFromMusicLibraryAction),
                                "",
                                symbol: "music.note.list")
@@ -275,21 +287,26 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                               symbol: "arrow.up.left.and.arrow.down.right")
         doubleSize.keyEquivalentModifierMask = [.command, .shift]
         doubleSize.state = state.doubleSize ? .on : .off
+        let autoPlay = item("AutoPlay", #selector(toggleAutoPlay), "", symbol: "")
+        autoPlay.state = state.autoPlay ? .on : .off
         let loadSkin = item("Load Skin…", #selector(loadSkinAction), "S", symbol: "paintpalette")
         loadSkin.keyEquivalentModifierMask = [.command, .shift]
         let unloadSkin = item("Unload Skin", #selector(unloadSkinAction), "", symbol: "paintpalette.fill")
 
         return AppMenuItems(
-            app: [about, .separator(), hide, .separator(), quit],
-            file: [openFile, openFolder, .separator(), importMusic],
+            app: [about, .separator()],
+            file: [openFile, openFolder, importMusic, .separator(),
+                   newList, loadList, saveList, .separator(),
+                   loadSkin, unloadSkin],
             edit: [selectAll],
             controls: [playPause, stop, next, prev, .separator(),
-                       repeat_, shuffle, .separator(), jump],
+                       repeat_, shuffle, autoPlay, .separator(), jump],
             view: [showPlayer, showEQ, showPL, .separator(),
-                   alwaysOnTop, doubleSize, .separator(),
-                   loadSkin, unloadSkin],
+                   alwaysOnTop, doubleSize],
+            quit: [hide, quit],
             alwaysOnTopItem: alwaysOnTop,
-            doubleSizeItem: doubleSize
+            doubleSizeItem: doubleSize,
+            autoPlayItem: autoPlay
         )
     }
 
@@ -297,6 +314,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppMenuState(
             alwaysOnTop: mainWindow?.alwaysOnTop ?? false,
             doubleSize: WinampTheme.scale > WinampTheme.baseScale + 0.01,
+            autoPlay: playlistManager?.autoPlay ?? false,
             eqVisible: mainWindow?.showEqualizer ?? false,
             playlistVisible: mainWindow?.showPlaylist ?? false
         )
@@ -308,7 +326,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let items = AppDelegate.buildAppMenuItems(state: currentMenuState())
         let menu = NSMenu()
         let groups: [[NSMenuItem]] = [
-            items.app, items.file, items.edit, items.controls, items.view
+            items.app, items.file, items.edit, items.controls, items.view, items.quit
         ]
         for (i, group) in groups.enumerated() {
             if i > 0 { menu.addItem(.separator()) }
@@ -321,13 +339,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let items = AppDelegate.buildAppMenuItems(state: currentMenuState())
         self.alwaysOnTopMenuItem = items.alwaysOnTopItem
         self.doubleSizeMenuItem = items.doubleSizeItem
+        self.autoPlayMenuItem = items.autoPlayItem
 
         let mainMenu = NSMenu()
         // The menu bar shows each top-level submenu's title (the app menu is
         // always shown as the app name), so the submenus must be titled —
         // an untitled NSMenu() renders as "NSMenuItem".
         let groups: [(String, [NSMenuItem])] = [
-            ("Wamp", items.app), ("File", items.file), ("Edit", items.edit),
+            ("Wamp", items.app + items.quit), ("File", items.file), ("Edit", items.edit),
             ("Controls", items.controls), ("View", items.view)
         ]
         for (title, group) in groups {
@@ -357,7 +376,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             .link: URL(string: "https://github.com/wishval/wamp") as Any,
             .foregroundColor: NSColor.linkColor
         ]
-        credits.append(NSAttributedString(string: "GitHub: https://github.com/wishval/wamp",
+        credits.append(NSAttributedString(string: "GitHub: https://github.com/lisanet/wamp",
                                           attributes: linkAttrs))
 
         NSApp.orderFrontStandardAboutPanel(options: [
@@ -441,6 +460,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             Task { await self?.playlistManager.addFolder(url) }
         }
     }
+    
+    @objc private func newListAction() { mainWindow.playlistView.listOptsNew() }
+    @objc private func loadListAction() { mainWindow.playlistView.listOptsLoad() }
+    @objc private func saveListAction() { mainWindow.playlistView.listOptsSave() }
 
     @objc func togglePlayPause() {
         if !audioEngine.isPlaying && audioEngine.currentTime == 0 && audioEngine.duration == 0,
@@ -504,6 +527,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         doubleSizeMenuItem?.state = (WinampTheme.scale > WinampTheme.baseScale + 0.01) ? .on : .off
     }
+    
+    @objc private func toggleAutoPlay() {
+        playlistManager.autoPlay.toggle()
+        autoPlayMenuItem?.state = playlistManager.autoPlay ? .on : .off
+        
+        var state = stateManager.loadAppState()
+        state.autoPlay = playlistManager.autoPlay
+        stateManager.saveAppState(state)
+    }
 
     @objc private func loadSkinAction() {
         let panel = NSOpenPanel()
@@ -550,19 +582,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.title = "♪"
 
         let menu = NSMenu()
-        let show = NSMenuItem(title: "Show Player", action: #selector(showPlayerAction), keyEquivalent: "")
-        show.target = self
-        menu.addItem(show)
+        
+        func item(_ title: String, _ action: Selector) -> NSMenuItem {
+            let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+            item.target = self
+            return item
+        }
+        
+        menu.addItem(item("Show Player", #selector(showPlayerAction)))
         menu.addItem(.separator())
-        let playPause = NSMenuItem(title: "Play/Pause", action: #selector(togglePlayPause), keyEquivalent: "")
-        playPause.target = self
-        menu.addItem(playPause)
-        let next = NSMenuItem(title: "Next Track", action: #selector(nextAction), keyEquivalent: "")
-        next.target = self
-        menu.addItem(next)
-        let prev = NSMenuItem(title: "Previous Track", action: #selector(prevAction), keyEquivalent: "")
-        prev.target = self
-        menu.addItem(prev)
+        menu.addItem(item("Play/Pause", #selector(togglePlayPause)))
+        menu.addItem(item("Stop", #selector(stopAction)))
+        menu.addItem(item("Next Track", #selector(nextAction)))
+        menu.addItem(item("Previous Track", #selector(prevAction)))
+        menu.addItem(.separator())
+        menu.addItem(item("Repeat", #selector(toggleRepeat)))
+        menu.addItem(item("Shuffle", #selector(toggleShuffle)))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(title: "Hide Player", action: #selector(NSApplication.hide(_:)), keyEquivalent: ""))
         menu.addItem(NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: ""))
@@ -609,6 +644,8 @@ extension AppDelegate: NSMenuItemValidation {
             menuItem.state = (mainWindow?.alwaysOnTop ?? false) ? .on : .off
         case #selector(toggleDoubleSize):
             menuItem.state = (WinampTheme.scale > WinampTheme.baseScale + 0.01) ? .on : .off
+        case #selector(toggleAutoPlay):
+            menuItem.state = (playlistManager?.autoPlay ?? false) ? .on : .off
         case #selector(importFromMusicLibraryAction):
             return importMusicController == nil
         default:

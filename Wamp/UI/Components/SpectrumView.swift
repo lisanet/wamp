@@ -55,7 +55,7 @@ class SpectrumView: NSView {
         let viscolors = WinampTheme.provider.viscolors
         guard viscolors.count >= 24 else { return }
 
-        // Row colors: viscolors[2..17], bottom → top.
+        // Row colors: viscolors[2..17], skin colors are top -> bottom
         // Peak cap: viscolors[23] per Winamp convention.
         let peakColor = viscolors[23]
 
@@ -67,7 +67,7 @@ class SpectrumView: NSView {
 
             // Discrete 16-step bar
             for r in 0..<litRows {
-                viscolors[2 + r].setFill()
+                viscolors[17 - r].setFill()
                 NSRect(x: x,
                        y: CGFloat(r) * rowHeight,
                        width: barWidth,

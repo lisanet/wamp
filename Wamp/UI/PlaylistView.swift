@@ -637,11 +637,11 @@ class PlaylistView: NSView {
         popUpMenu(menu, for: .list)
     }
 
-    @objc private func listOptsNew() {
+    @objc func listOptsNew() {
         playlistManager?.clearPlaylist()
     }
 
-    @objc private func listOptsLoad() {
+    @objc func listOptsLoad() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
@@ -657,7 +657,7 @@ class PlaylistView: NSView {
         }
     }
 
-    @objc private func listOptsSave() {
+    @objc func listOptsSave() {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [UTType(filenameExtension: "m3u")].compactMap { $0 }
         panel.nameFieldStringValue = "playlist.m3u"
