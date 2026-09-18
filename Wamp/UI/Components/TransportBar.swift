@@ -70,10 +70,12 @@ class TransportBar: NSView {
         let btnW: CGFloat = 22
         let btnH: CGFloat = 18
         let gap: CGFloat = 1
-        let buttons = [prevButton!, playButton!, pauseButton!, stopButton!, nextButton!, ejectButton!]
+        let buttons = [prevButton!, playButton!, pauseButton!, stopButton!, nextButton!]
         for (i, btn) in buttons.enumerated() {
             btn.frame = NSRect(x: CGFloat(i) * (btnW + gap), y: 0, width: btnW, height: btnH)
         }
+        // eject button has y: 1 and gap: 6, so x = 5 * 22 + 4 + 6 = 120
+        ejectButton!.frame = NSRect(x: 120, y: 1, width: 22, height: 16)
     }
 
     override var intrinsicContentSize: NSSize {
