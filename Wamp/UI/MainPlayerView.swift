@@ -263,7 +263,7 @@ class MainPlayerView: NSView {
     @objc private func handleSkinnedMinimize() { window?.miniaturize(nil) }
     @objc private func handleSkinnedMenu() { showWindowMenu() }
     @objc private func handleOpenGitHub() {
-        if let url = URL(string: "https://github.com/wishval/wamp") {
+        if let url = URL(string: "https://github.com/lisanet/wamp") {
             NSWorkspace.shared.open(url)
         }
     }
